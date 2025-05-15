@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReBiome Project</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #000647;
+      position: relative;
+    }
+    .overlay, .start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      flex-direction: column;
+      color: #fff;
+      text-align: center;
+    }
+    .overlay button, .overlay input {
+      margin: 8px;
+      padding: 12px 20px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+    }
+    .overlay button {
+      background: #474100;
+      color: #fff;
+    }
+    .overlay input {
+      width: 60px;
+      text-align: center;
+    }
+    .start-screen h1 {
+      font-size: 2rem;
+      margin: 0.5em 0;
+      font-family: 'Courier New', Courier, monospace;
+      color: #ff4c4c;
+      text-shadow: 0 0 10px red;
+    }
+    .start-screen h2 {
+      font-size: 1rem;
+      margin: 0.3em 0;
+      animation: flicker 2s infinite;
+      color: #ffcc00;
+    }
+    .start-screen h3 {
+      font-size: 0.8rem;
+      margin: 1em 0 0;
+	  animation: flicker 10s infinite;
+      color: #ccc;
+    }
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    #audioToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      z-index: 20;
+    }
+    #hp-container {
+      width: 90%;
+      max-width: 400px;
+      background: #ccc;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    #hp-bar {
+      height: 30px;
+      width: 0%;
+      background: #28a745;
+      border-radius: 20px 0 0 20px;
+      transition: width 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .bubble {
+      position: absolute;
+      bottom: -10px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      animation: rise 3s infinite ease-in;
+      opacity: 0.7;
+    }
+    @keyframes rise {
+      0% {
+        transform: translateY(0) scale(0.5);
+        opacity: 0.7;
+      }
+      100% {
+        transform: translateY(-40px) scale(1);
+        opacity: 0;
+      }
+    }
+    .controls {
+      display: flex;
+      gap: 20px;
+      width: 90%;
+      max-width: 400px;
+    }
+	
+    #minusBtn {
+      padding: 12px 20px;
+      font-size: 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background: #470006;
+      color: #fff;
+      flex: 1;
+    }
+	#plusBtn {
+      padding: 12px 20px;
+      font-size: 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background: #064700;
+      color: #fff;
+      flex: 1;
+	  }
+    #hp-text {
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+	  font-family: 'Courier New', Courier, monospace;
+      color: #ff4c4c;
+      text-shadow: 0 0 10px red;
+    }
+    #gameContainer {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    #easter-egg {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: transparent;
+      border: none;
+      font-size: 1rem;
+      color: #aaa;
+      z-index: 25;
+    }
+  </style>
+</head>
+<body>
+  <button id="audioToggle">🔊</button>
+  <button id="easter-egg">🧪</button>
+  <audio id="bgMusic" src="./sounds/ReBiome.wav" loop></audio>
+  <audio id="soundDown" src="./sounds/sound down.wav"></audio>
+  <audio id="soundUp" src="./sounds/sound up.wav"></audio>
+  <audio id="beepSound" src="./sounds/beep.mp3"></audio>
+
+  <div class="start-screen" id="startScreen">
+    <h1>Welcome to the ReBiome Project</h1>
+    <h2>Proceed with caution</h2>
+    <h3>Press anywhere to continue</h3>
+  </div>
+
+  <div class="overlay" id="difficultyOverlay" style="display:none;">
+    <h2>Select Difficulty</h2>
+    <button data-pct="75">Easy (75%)</button>
+    <button data-pct="50">Medium (50%)</button>
+    <button data-pct="25">Hard (25%)</button>
+    <button id="customBtn">Custom</button>
+    <div id="customInputContainer" style="display:none;">
+      <input type="number" id="customInput" min="0" max="100" placeholder="0-100" />
+      <button id="customOk">OK</button>
+    </div>
+  </div>
+
+  <div id="gameContainer">
+    <div id="hp-text">Health Bar: <span id="hpValue">0</span>/100</div>
+    <div id="hp-container">
+      <div id="hp-bar"></div>
+    </div>
+    <div class="controls">
+      <button id="minusBtn">-</button>
+      <button id="plusBtn">+</button>
+    </div>
+  </div>
+
+  <script>
+    let hp = 0;
+    const hpBar = document.getElementById('hp-bar');
+    const hpValue = document.getElementById('hpValue');
+    const overlay = document.getElementById('difficultyOverlay');
+    const gameContainer = document.getElementById('gameContainer');
+    const customBtn = document.getElementById('customBtn');
+    const customInputContainer = document.getElementById('customInputContainer');
+    const customInput = document.getElementById('customInput');
+    const customOk = document.getElementById('customOk');
+    const audioToggle = document.getElementById('audioToggle');
+    const bgMusic = document.getElementById('bgMusic');
+    const soundDown = document.getElementById('soundDown');
+    const soundUp = document.getElementById('soundUp');
+    const beepSound = document.getElementById('beepSound');
+    const startScreen = document.getElementById('startScreen');
+    const easterEgg = document.getElementById('easter-egg');
+
+    let musicPlaying = false;
+    audioToggle.addEventListener('click', () => {
+      if (musicPlaying) {
+        bgMusic.pause();
+        audioToggle.textContent = '🔇';
+      } else {
+        bgMusic.play();
+        audioToggle.textContent = '🔊';
+      }
+      musicPlaying = !musicPlaying;
+    });
+
+    function updateDisplay() {
+      hpBar.style.width = hp + '%';
+      hpValue.textContent = hp;
+      if (hp >= 61) {
+        hpBar.style.background = '#14a235'; 
+      } else if (hp >= 31) {
+        hpBar.style.background = '#e7ad00'; 
+      } else {
+        hpBar.style.background = '#dc3545'; 
+      }
+    }
+
+    function spawnBubble() {
+      const bubble = document.createElement('div');
+      const size = Math.random() * 10 + 5;
+      bubble.classList.add('bubble');
+      bubble.style.width = bubble.style.height = size + 'px';
+      bubble.style.left = Math.random() * 100 + '%';
+      hpBar.appendChild(bubble);
+      setTimeout(() => bubble.remove(), 3000);
+    }
+
+    document.getElementById('minusBtn').addEventListener('click', () => {
+      soundDown.currentTime = 0;
+      soundDown.play();
+      if (hp > 0) hp--;
+      updateDisplay();
+    });
+
+    document.getElementById('plusBtn').addEventListener('click', () => {
+      soundUp.currentTime = 0;
+      soundUp.play();
+      if (hp < 100) hp++;
+      updateDisplay();
+    });
+
+    overlay.querySelectorAll('button[data-pct]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        beepSound.currentTime = 0;
+        beepSound.play();
+        hp = parseInt(btn.getAttribute('data-pct'), 10);
+        startGame();
+      });
+    });
+
+    customBtn.addEventListener('click', () => {
+      beepSound.currentTime = 0;
+      beepSound.play();
+      customInputContainer.style.display = 'flex';
+      customBtn.style.display = 'none';
+    });
+
+    customOk.addEventListener('click', () => {
+      beepSound.currentTime = 0;
+      beepSound.play();
+      let custom = parseInt(customInput.value, 10);
+      if (isNaN(custom) || custom < 0 || custom > 100) {
+        custom = 50;
+      }
+      hp = custom;
+      startGame();
+    });
+
+    function startGame() {
+      updateDisplay();
+      overlay.style.display = 'none';
+      gameContainer.style.display = 'flex';
+    }
+
+    startScreen.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      overlay.style.display = 'flex';
+    });
+
+    easterEgg.addEventListener('click', () => {
+      alert("🎉 You've found the Easter Egg! ReBiome secrets unlocked!");
+    });
+
+    setInterval(() => {
+      spawnBubble();
+    }, 400);
+
+    document.addEventListener('gesturestart', e => e.preventDefault());
+  </script>
+</body>
+</html>
